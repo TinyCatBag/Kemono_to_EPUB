@@ -49,9 +49,6 @@ pub struct EpubRequest {
     //pub image: Image,
 }
 
-//TODO: Add dynamic title creation
-//  TLDR make it work kinda like format!()
-//  let the user pick his poison QwQ
 pub enum Title {
     Custom((String, bool)),
     StartToEnd,
@@ -116,23 +113,52 @@ impl EpubRequest {
             let user_start = address[service_end..].find("/").expect("Cant find id")+service_end+1;
             let user_end = address[user_start..].find("/").expect("Cant find id")+user_start;
 
-            let id = address[user_end..].find("/").expect("Cant find id")+user_end+1;
-            let result = match address[id..].find("?") {
+            let creator_id_start = address[user_end..].find("/").expect("Cant find creator id")+user_end+1;
+            let result = match address[creator_id_start..].find("?") {
                 Some(x) => {(
-                    &address[service_start..service_end],   //Service
-                    &address[id..x+id]                      //ID
+                    &address[service_start..service_end],           //Service
+                    &address[creator_id_start..x+creator_id_start]  //ID
                 )},
                 None => {(
-                    &address[service_start..service_end],   //Service
-                    &address[id..]                          //ID
+                    &address[service_start..service_end],           //Service
+                    &address[creator_id_start..]                    //ID
                 )},                 
             };
+            
+            //  The code below doesnt work because it doesnt discard ?o=50, 
+            //  apparently that causes it to return posts.
+            //  the code that could cause this MUST be a 
+            //  5 star Heaven Golden Chaos Body Immortal Gread Dao treasure. :/
+
+            //  ok never mind, it just probably reads the offset and ignores everything else...
+            //  Im leaving the comment above anyway
+
+            //let result = if address[creator_id_start..].find("/").is_some() {
+            //    let creator_id_end = address[creator_id_start..].find("/").unwrap();
+            //    //https://kemono.su/patreon/user/31891971 / post/124265700
+            //
+            //    let post_start = address[creator_id_end..].find("/").expect("Cant find post");
+            //    let post_end = address[creator_id_end..].find("/").expect("Cant find post");
+            //
+            //    let post_id = address[post_end..];
+            //
+            //    //TODO: The above is to epub only posts
+            //
+            //    (&address[service_start..service_end],                          //Service
+            //    &address[creator_id_start..creator_id_end+creator_id_start])    //Creator ID
+            //}   //TODO: Add a way for post ids to be returned and then if there is a post id
+            //    //  only epub that one singular post, because if there is a post id it's a post url
+            //else {
+            //    (&address[service_start..service_end],                          //Service
+            //    &address[creator_id_start..])                                   //Creator ID
+            //};
             result
         };
         let request = reqwest::get(
             format!("https://kemono.su/api/v1/{service}/user/{id}/profile"))
             .await.unwrap().text().await.unwrap().replace("\"", r#"""#);
-        //println!("{:#?}", request);
+        //println!("{:#?}", serde_json::from_str::<Value>(&request[..]).unwrap());
+        //println!("{:#?}", (service, id));
         serde_json::from_str(&request[..]).unwrap()
         //Makes a creator
         //Will error with some services
@@ -271,19 +297,30 @@ fn match_title(creator: &Creator, title: &Title, epub: bool) -> String{
         },
         Title::Custom(x) => {
             output = x.0.to_string();
+
             if epub && x.1 == false {
-                return output + ".epub"
+                return custom_title_replace(output, creator) + ".epub"
             }
             if !epub && x.1 == true {
-                return output[..output.len()-6].to_string()
+                return custom_title_replace(output, creator)
             }
-            return output
+            return custom_title_replace(output, creator)
         },
     }
     if epub {
-        return output + ".epub"
+        return custom_title_replace(output, creator) + ".epub"
     }
-    output
+    custom_title_replace(output, creator)
+}
+
+fn custom_title_replace(input: String, creator: &Creator) -> String {
+    let posts = creator.posts.as_ref().unwrap();
+    input
+        .replace("{Creator.name}", &creator.name)
+        .replace("{Posts.first}", &posts.last().unwrap().title)
+        .replace("{Posts.last}", &posts.first().unwrap().title)
+        .replace("{Posts.count}", &posts.len().to_string())
+        .replace(r#"\"#, "")
 }
 
 fn create_dirs(zip: &mut ZipWriter<File>, options: SimpleFileOptions) -> Result<(), std::io::Error> {
@@ -685,8 +722,6 @@ impl Post {
                 None => self.opf_extras = Some(vec![self.content[url_start..url_end].to_string()]),
             };
             //println!("{:#?}", self.opf_extras);
-
-
             //println!("Url: {}", self.content[url_start..url_end].to_string());
 
             offset = offset + start;
