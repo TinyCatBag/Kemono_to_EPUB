@@ -462,8 +462,7 @@ fn create_content(creator: &Creator, zip: &mut ZipWriter<File>, options: SimpleF
 
     let mut contributor = XMLElement::new("dc:contributor");
     contributor.add_attribute("opf:role","bkp");
-    contributor.add_text(r#"[https://github.com/dteviot/WebToEpub] (ver. 1.0.1.0)"#);
-    // TODO: Yo like maybe make it your github like lmao
+    contributor.add_text(r#"[https://github.com/TinyCatBag/Kemono_to_EPUB] (ver. 1.0.1.0)"#);
 
     let mut meta = XMLElement::new("meta");
     meta.add_attribute("content","cover-image");
