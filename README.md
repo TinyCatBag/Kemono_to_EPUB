@@ -15,7 +15,7 @@ You can insert first and last posts title and total count with: <br>
 </ul>
 <hr>
 It's also possible to insert the creator's name<br>
-  <li><ul>{Creator.name}</li></ul>
+  <ul><li>{Creator.name}</li></ul>
 <hr>
 It's possible to escape this by simply adding \ after the first {. <br>
   <ul><li>{\Posts.first}</li></ul>
